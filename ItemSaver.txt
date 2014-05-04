@@ -1,0 +1,7 @@
+## Title: Item Saver
+## Author: ingeniousclown
+## Version: 0.2.2
+## APIVersion: 100003
+## SavedVariables: ItemSaver_Settings
+
+ItemSaver.lua
