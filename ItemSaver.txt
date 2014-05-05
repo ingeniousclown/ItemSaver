@@ -1,7 +1,11 @@
 ## Title: Item Saver
 ## Author: ingeniousclown
-## Version: 0.2.2
+## Version: 0.3.0
 ## APIVersion: 100003
 ## SavedVariables: ItemSaver_Settings
+## OptionalDependsOn: libFilters
+
+lib\LibStub\LibStub.lua
+lib\libFilters\libFilters.lua
 
 ItemSaver.lua

@@ -1,12 +1,14 @@
 ------------------------------------------------------------------
 --ItemSaver.lua
 --Author: ingeniousclown, 
---v0.2.2
+--v0.3.0
 --[[
 Allows you to mark an item so you can know that you meant to save
 it for some reason.
 ]]
 ------------------------------------------------------------------
+
+libFilters = LibStub("libFilters")
 
 local BACKPACK = ZO_PlayerInventoryBackpack
 local BANK = ZO_PlayerBankBackpack
@@ -67,13 +69,13 @@ local function MyGetItemInstanceId(rowControl)
 end
 
 local function FilterSavedItems(self, bagId, slotIndex, ...)
-	if(settings.isFilterOn and markedItems[SignItemId(GetItemInstanceId(bagId, slotIndex))]) then
+	if(markedItems[SignItemId(GetItemInstanceId(bagId, slotIndex))]) then
 		return true
 	end
 end
 
 local function FilterSavedItemsForShop(slot)
-	if(settings.isFilterOn and markedItems[MyGetItemInstanceId(slot)]) then
+	if(markedItems[MyGetItemInstanceId(slot)]) then
 		return false
 	end
 	return true
@@ -135,18 +137,32 @@ end
 
 local function AddMark(rowControl)
 	if(not markedItems[MyGetItemInstanceId(rowControl)]) then 
-		AddMenuItem("Mark item", function() MarkMe(rowControl) end, MENU_ADD_OPTION_LABEL)
+		AddMenuItem("Save item", function() MarkMe(rowControl) end, MENU_ADD_OPTION_LABEL)
 	else
-		AddMenuItem("Unmark item", function() UnmarkMe(rowControl) end, MENU_ADD_OPTION_LABEL)
+		AddMenuItem("Unsave item", function() UnmarkMe(rowControl) end, MENU_ADD_OPTION_LABEL)
 	end
 	ShowMenu(self)
 end
 
 local function AddMarkSoon(rowControl)
+	if(rowControl:GetOwningWindow() == ZO_TradingHouse) then return end
+
 	if(rowControl:GetParent() ~= ZO_Character) then
 		zo_callLater(function() AddMark(rowControl:GetParent()) end, 50)
 	else
 		zo_callLater(function() AddMark(rowControl) end, 50)
+	end
+end
+
+local function ToggleFilter( toggle )
+	if(toggle) then
+		d("ItemSaver filters turned OFF")
+		libFilters:UnregisterFilter("ItemSaver_ShopFilter")
+		libFilters:UnregisterFilter("ItemSaver_DeconstructionFilter")
+	else
+		d("ItemSaver filters turned ON")
+		libFilters:RegisterFilter("ItemSaver_ShopFilter", LAF_STORE, FilterSavedItemsForShop)
+		libFilters:RegisterFilter("ItemSaver_DeconstructionFilter", LAF_DECONSTRUCTION, FilterSavedItems)
 	end
 end
 
@@ -201,7 +217,6 @@ local function ItemSaver_Loaded(eventCode, addOnName)
 			CreateMarkerControl(rowControl)
 
 			local data = rowControl.dataEntry.data
-			GLOBALOL = data
 			local isSoulGem = false
 			if(data and GetSoulGemItemInfo(data.bag, data.index) > 0) then
 				isSoulGem = true
@@ -217,30 +232,12 @@ local function ItemSaver_Loaded(eventCode, addOnName)
 	ZO_ScrollList_RefreshVisible(BACKPACK)
 	ZO_ScrollList_RefreshVisible(BANK)
 	ZO_ScrollList_RefreshVisible(GUILD_BANK)
-
-	ZO_PreHook(SMITHING.deconstructionPanel.inventory, "AddItemData", FilterSavedItems)
-	BACKPACK_STORE_LAYOUT_FRAGMENT.layoutData.additionalFilter = FilterSavedItemsForShop
-	-- ZO_PreHook(SMITHING.deconstructionPanel.inventory, "AddItemData", FilterSavedItems)
+	ToggleFilter(settings.isFilterOn)
 
 	SLASH_COMMANDS["/itemsaver"] = function(arg)
 			if(arg == "filters") then
 				settings.isFilterOn = not settings.isFilterOn
-				if(not settings.isFilterOn) then
-					d("ItemSaver filters turned OFF")
-				else
-					d("ItemSaver filters turned ON")
-				end
-				PLAYER_INVENTORY:UpdateList(1)
-				--not sure if these next two are necessary at all, but just in case...
-				if(not PLAYER_INVENTORY.inventories[3].listView:IsHidden()) then
-					PLAYER_INVENTORY:UpdateList(3)
-				end
-				if(not PLAYER_INVENTORY.inventories[4].listView:IsHidden()) then
-					PLAYER_INVENTORY:UpdateList(4)
-				end
-				if(GetCraftingInteractionType() > 0) then
-					SMITHING.deconstructionPanel.inventory:PerformFullRefresh()
-				end
+				ToggleFilter(settings.isFilterOn)
 			end
 		end
 end
