@@ -1,7 +1,7 @@
 ------------------------------------------------------------------
 --ItemSaver.lua
 --Author: ingeniousclown, 
---v0.3.0
+--v0.3.1
 --[[
 Allows you to mark an item so you can know that you meant to save
 it for some reason.
@@ -17,6 +17,7 @@ local DECONSTRUCTION = ZO_SmithingTopLevelDeconstructionPanelInventoryBackpack
 local LIST_DIALOG = ZO_ListDialog1List
 
 local MARKER_TEXTURE = [[/esoui/art/campaign/overview_indexicon_bonus_disabled.dds]]
+local MARKER_TEXTURE_ALT = [[/esoui/art/campaign/campaignbrowser_fullpop.dds]]
 
 local settings = {}
 local markedItems = nil
@@ -24,13 +25,6 @@ local markedItems = nil
 local SIGNED_INT_MAX = 2^32 / 2 - 1
 local INT_MAX = 2^32
 
-local function RefreshAll()
-	ZO_ScrollList_RefreshVisible(BACKPACK)
-	ZO_ScrollList_RefreshVisible(BANK)
-	ZO_ScrollList_RefreshVisible(GUILD_BANK)
-	ZO_ScrollList_RefreshVisible(DECONSTRUCTION)
-	ZO_ScrollList_RefreshVisible(LIST_DIALOG)
-end
 
 local function GetItemSaverControl(parent)
 	return parent:GetNamedChild("ItemSaver")
@@ -68,10 +62,11 @@ local function MyGetItemInstanceId(rowControl)
 	return SignItemId(itemId)
 end
 
-local function FilterSavedItems(self, bagId, slotIndex, ...)
+local function FilterSavedItems(bagId, slotIndex, ...)
 	if(markedItems[SignItemId(GetItemInstanceId(bagId, slotIndex))]) then
-		return true
+		return false
 	end
+	return true
 end
 
 local function FilterSavedItemsForShop(slot)
@@ -87,10 +82,15 @@ local function CreateMarkerControl(parent)
 	if(not control) then
 		control = WINDOW_MANAGER:CreateControl(parent:GetName() .. "ItemSaver", parent, CT_TEXTURE)
 		control:SetDimensions(32, 32)
-		control:SetTexture(MARKER_TEXTURE)
 	end
 
-	control:SetColor(1, 0, 0, 1)
+	if(settings.isAlternate) then
+		control:SetTexture(MARKER_TEXTURE_ALT)
+		control:SetColor(1, 1, 0, 1)
+	else
+		control:SetTexture(MARKER_TEXTURE)
+		control:SetColor(1, 0, 0, 1)
+	end
 	if(markedItems[MyGetItemInstanceId(parent)]) then
 		control:SetHidden(false)
 	else
@@ -118,6 +118,23 @@ local function CreateMarkerControlForEquipment(parent)
 	control:SetAnchor(BOTTOMLEFT, parent, BOTTOMLEFT)
 	control:SetDimensions(20, 20)
 	control:SetDrawTier(1)
+end
+
+local function RefreshEquipmentControls()
+	for i=1, ZO_Character:GetNumChildren() do
+		if(string.find(ZO_Character:GetChild(i):GetName(), "ZO_CharacterEquipmentSlots")) then
+			CreateMarkerControlForEquipment(ZO_Character:GetChild(i))
+		end
+	end
+end
+
+local function RefreshAll()
+	ZO_ScrollList_RefreshVisible(BACKPACK)
+	ZO_ScrollList_RefreshVisible(BANK)
+	ZO_ScrollList_RefreshVisible(GUILD_BANK)
+	ZO_ScrollList_RefreshVisible(DECONSTRUCTION)
+	ZO_ScrollList_RefreshVisible(LIST_DIALOG)
+	RefreshEquipmentControls()
 end
 
 local function MarkMe(rowControl)
@@ -164,6 +181,7 @@ local function ToggleFilter( toggle )
 		libFilters:RegisterFilter("ItemSaver_ShopFilter", LAF_STORE, FilterSavedItemsForShop)
 		libFilters:RegisterFilter("ItemSaver_DeconstructionFilter", LAF_DECONSTRUCTION, FilterSavedItems)
 	end
+	ZO_ScrollList_RefreshVisible(LIST_DIALOG)
 end
 
 local function ItemSaver_Loaded(eventCode, addOnName)
@@ -173,7 +191,8 @@ local function ItemSaver_Loaded(eventCode, addOnName)
 
     local defaults = {
     	markedItems = {},
-    	isFilterOn = false
+    	isFilterOn = false,
+    	isAlternate = false
 	}
 
 	settings = ZO_SavedVars:NewAccountWide("ItemSaver_Settings", 1, nil, defaults)
@@ -196,12 +215,7 @@ local function ItemSaver_Loaded(eventCode, addOnName)
 	ZO_PreHook("ZO_InventorySlot_ShowContextMenu", AddMarkSoon)
 	ZO_PreHook("PlayOnEquippedAnimation", CreateMarkerControlForEquipment)
 
-	for i=1, ZO_Character:GetNumChildren() do
-		if(string.find(ZO_Character:GetChild(i):GetName(), "ZO_CharacterEquipmentSlots")) then
-			CreateMarkerControlForEquipment(ZO_Character:GetChild(i))
-		end
-	end
-
+	RefreshEquipmentControls()
 
 	--deconstruction hook
 	local hookedFunctions = DECONSTRUCTION.dataTypes[1].setupCallback
@@ -238,6 +252,10 @@ local function ItemSaver_Loaded(eventCode, addOnName)
 			if(arg == "filters") then
 				settings.isFilterOn = not settings.isFilterOn
 				ToggleFilter(settings.isFilterOn)
+			end
+			if(arg == "alternate") then
+				settings.isAlternate = not settings.isAlternate
+				RefreshAll()
 			end
 		end
 end
