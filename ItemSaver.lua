@@ -1,14 +1,14 @@
 ------------------------------------------------------------------
 --ItemSaver.lua
 --Author: ingeniousclown, 
---v0.3.1
+--v0.4.0b
 --[[
 Allows you to mark an item so you can know that you meant to save
 it for some reason.
 ]]
 ------------------------------------------------------------------
 
-libFilters = LibStub("libFilters")
+local libFilters = LibStub("libFilters")
 
 local BACKPACK = ZO_PlayerInventoryBackpack
 local BANK = ZO_PlayerBankBackpack
@@ -19,7 +19,7 @@ local LIST_DIALOG = ZO_ListDialog1List
 local MARKER_TEXTURE = [[/esoui/art/campaign/overview_indexicon_bonus_disabled.dds]]
 local MARKER_TEXTURE_ALT = [[/esoui/art/campaign/campaignbrowser_fullpop.dds]]
 
-local settings = {}
+local ISSettings = nil
 local markedItems = nil
 
 local SIGNED_INT_MAX = 2^32 / 2 - 1
@@ -84,13 +84,8 @@ local function CreateMarkerControl(parent)
 		control:SetDimensions(32, 32)
 	end
 
-	if(settings.isAlternate) then
-		control:SetTexture(MARKER_TEXTURE_ALT)
-		control:SetColor(1, 1, 0, 1)
-	else
-		control:SetTexture(MARKER_TEXTURE)
-		control:SetColor(1, 0, 0, 1)
-	end
+	control:SetTexture(ISSettings:GetTexturePath())
+	control:SetColor(ISSettings:GetTextureColor())
 	if(markedItems[MyGetItemInstanceId(parent)]) then
 		control:SetHidden(false)
 	else
@@ -140,7 +135,9 @@ end
 local function MarkMe(rowControl)
 	markedItems[MyGetItemInstanceId(rowControl)] = true
 	RefreshAll()
-	GetItemSaverControl(rowControl):SetHidden(false)
+	if(GetItemSaverControl(rowControl)) then
+		GetItemSaverControl(rowControl):SetHidden(false)
+	end
 end
 
 local function UnmarkMe(rowControl)
@@ -149,7 +146,9 @@ local function UnmarkMe(rowControl)
 		markedItems[itemId] = nil
 	end
 	RefreshAll()
-	GetItemSaverControl(rowControl):SetHidden(true)
+	if(GetItemSaverControl(rowControl)) then
+		GetItemSaverControl(rowControl):SetHidden(true)
+	end
 end
 
 local function AddMark(rowControl)
@@ -163,6 +162,7 @@ end
 
 local function AddMarkSoon(rowControl)
 	if(rowControl:GetOwningWindow() == ZO_TradingHouse) then return end
+	if(BACKPACK:IsHidden() and BANK:IsHidden() and GUILD_BANK:IsHidden() and DECONSTRUCTION:IsHidden()) then return end
 
 	if(rowControl:GetParent() ~= ZO_Character) then
 		zo_callLater(function() AddMark(rowControl:GetParent()) end, 50)
@@ -171,16 +171,36 @@ local function AddMarkSoon(rowControl)
 	end
 end
 
-local function ToggleFilter( toggle )
+function ItemSaver_ToggleShopFilter( toggle )
 	if(toggle) then
-		d("ItemSaver filters turned OFF")
-		libFilters:UnregisterFilter("ItemSaver_ShopFilter")
-		libFilters:UnregisterFilter("ItemSaver_DeconstructionFilter")
+		if(ISSettings:IsFilterShop() and not libFilters:IsFilterRegistered("ItemSaver_ShopFilter")) then
+			libFilters:RegisterFilter("ItemSaver_ShopFilter", LAF_STORE, FilterSavedItemsForShop)
+		end
 	else
-		d("ItemSaver filters turned ON")
-		libFilters:RegisterFilter("ItemSaver_ShopFilter", LAF_STORE, FilterSavedItemsForShop)
-		libFilters:RegisterFilter("ItemSaver_DeconstructionFilter", LAF_DECONSTRUCTION, FilterSavedItems)
+		libFilters:UnregisterFilter("ItemSaver_ShopFilter")
 	end
+end
+
+function ItemSaver_ToggleDeconstructionFilter( toggle )
+	if(toggle) then
+		if(ISSettings:IsFilterDeconstruction() and not libFilters:IsFilterRegistered("ItemSaver_DeconstructionFilter")) then
+			libFilters:RegisterFilter("ItemSaver_DeconstructionFilter", LAF_DECONSTRUCTION, FilterSavedItems)
+		end
+	else
+		libFilters:UnregisterFilter("ItemSaver_DeconstructionFilter")
+	end
+end
+
+function ItemSaver_ToggleFilters( toggle, quiet )
+	if(not quiet) then
+		if(not toggle) then
+			d("ItemSaver filters turned OFF")
+		else
+			d("ItemSaver filters turned ON")
+		end
+	end
+	ItemSaver_ToggleShopFilter(toggle)
+	ItemSaver_ToggleDeconstructionFilter(toggle)
 	ZO_ScrollList_RefreshVisible(LIST_DIALOG)
 end
 
@@ -195,8 +215,8 @@ local function ItemSaver_Loaded(eventCode, addOnName)
     	isAlternate = false
 	}
 
-	settings = ZO_SavedVars:NewAccountWide("ItemSaver_Settings", 1, nil, defaults)
-	markedItems = settings.markedItems
+	ISSettings = ItemSaverSettings:New()
+	markedItems = ISSettings:GetMarkedItems()
 
     --Wobin, if you're reading this: <3
     for _,v in pairs(PLAYER_INVENTORY.inventories) do
@@ -235,7 +255,7 @@ local function ItemSaver_Loaded(eventCode, addOnName)
 			if(data and GetSoulGemItemInfo(data.bag, data.index) > 0) then
 				isSoulGem = true
 			end
-			if(settings.isFilterOn and not isSoulGem and markedItems[MyGetItemInstanceId(rowControl)]) then
+			if(ISSettings:IsFilterOn() and ISSettings:IsFilterResearch() and not isSoulGem and markedItems[MyGetItemInstanceId(rowControl)]) then
 				rowControl:SetMouseEnabled(false)
 				rowControl:GetNamedChild("Name"):SetColor(.75, 0, 0, 1)
 			else
@@ -246,16 +266,12 @@ local function ItemSaver_Loaded(eventCode, addOnName)
 	ZO_ScrollList_RefreshVisible(BACKPACK)
 	ZO_ScrollList_RefreshVisible(BANK)
 	ZO_ScrollList_RefreshVisible(GUILD_BANK)
-	ToggleFilter(settings.isFilterOn)
+	ItemSaver_ToggleFilters(ISSettings:IsFilterOn())
 
 	SLASH_COMMANDS["/itemsaver"] = function(arg)
 			if(arg == "filters") then
-				settings.isFilterOn = not settings.isFilterOn
-				ToggleFilter(settings.isFilterOn)
-			end
-			if(arg == "alternate") then
-				settings.isAlternate = not settings.isAlternate
-				RefreshAll()
+				ISSettings:ToggleFilter()
+				ItemSaver_ToggleFilters(ISSettings:IsFilterOn())
 			end
 		end
 end
