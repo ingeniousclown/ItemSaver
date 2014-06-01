@@ -1,7 +1,7 @@
 ------------------------------------------------------------------
 --ItemSaver.lua
 --Author: ingeniousclown, 
---v0.4.0b
+--v1.0.0
 --[[
 Allows you to mark an item so you can know that you meant to save
 it for some reason.
@@ -133,6 +133,10 @@ local function RefreshAll()
 end
 
 local function MarkMe(rowControl)
+	itemId = MyGetItemInstanceId(rowControl)
+
+	if(not itemId) then return end
+
 	markedItems[MyGetItemInstanceId(rowControl)] = true
 	RefreshAll()
 	if(GetItemSaverControl(rowControl)) then
@@ -142,6 +146,9 @@ end
 
 local function UnmarkMe(rowControl)
 	local itemId = MyGetItemInstanceId(rowControl)
+
+	if(not itemId) then return end
+
 	if(markedItems[itemId]) then
 		markedItems[itemId] = nil
 	end
@@ -168,6 +175,34 @@ local function AddMarkSoon(rowControl)
 		zo_callLater(function() AddMark(rowControl:GetParent()) end, 50)
 	else
 		zo_callLater(function() AddMark(rowControl) end, 50)
+	end
+end
+
+local function ToggleMark(rowControl)
+	if(not markedItems[MyGetItemInstanceId(rowControl)]) then 
+		MarkMe(rowControl)
+	else
+		UnmarkMe(rowControl)
+	end
+end
+
+function ItemSaver_ToggleSave()
+	local mouseOverControl = WINDOW_MANAGER:GetMouseOverControl()
+	--if is a backpack row or child of one
+	if(mouseOverControl:GetName():find("^ZO_%a+Backpack%dRow%d%d*")) then
+		--check if the control IS the row
+		if(mouseOverControl:GetName():find("^ZO_%a+Backpack%dRow%d%d*$")) then
+			ToggleMark(mouseOverControl)
+		else
+			mouseOverControl = mouseOverControl:GetParent()
+			--this SHOULD be the row control - if it isn't then idk how to handle it without going iterating through parents
+			--that shouldn't happen unless someone is doing something weird
+			if(mouseOverControl:GetName():find("^ZO_%a+Backpack%dRow%d%d*$")) then
+				ToggleMark(mouseOverControl)
+			end
+		end
+	elseif(mouseOverControl:GetName():find("^ZO_CharacterEquipmentSlots.+$")) then
+		ToggleMark(mouseOverControl)
 	end
 end
 
@@ -267,6 +302,8 @@ local function ItemSaver_Loaded(eventCode, addOnName)
 	ZO_ScrollList_RefreshVisible(BANK)
 	ZO_ScrollList_RefreshVisible(GUILD_BANK)
 	ItemSaver_ToggleFilters(ISSettings:IsFilterOn())
+
+	ZO_CreateStringId("SI_BINDING_NAME_ITEM_SAVER_TOGGLE", "Toggle Item Saved")
 
 	SLASH_COMMANDS["/itemsaver"] = function(arg)
 			if(arg == "filters") then

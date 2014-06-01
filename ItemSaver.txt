@@ -1,7 +1,7 @@
 ## Title: Item Saver
 ## Author: ingeniousclown
-## Version: 0.4.0b
-## APIVersion: 100003
+## Version: 1.0.0
+## APIVersion: 100004
 ## SavedVariables: ItemSaver_Settings
 ## OptionalDependsOn: libFilters
 
@@ -12,3 +12,5 @@ lib\LibAddonMenu-1.0\LibAddonMenu-1.0.lua
 ItemSaver_Strings.lua
 ItemSaverSettings.lua
 ItemSaver.lua
+
+bindings.xml

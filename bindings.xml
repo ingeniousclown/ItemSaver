@@ -1,0 +1,9 @@
+<Bindings>
+  <Layer name="SI_KEYBINDINGS_LAYER_USER_INTERFACE_SHORTCUTS">
+    <Category name="Item Saver">
+      <Action name="ITEM_SAVER_TOGGLE">
+        <Down>ItemSaver_ToggleSave()</Down>
+      </Action>
+    </Category>
+  </Layer>
+</Bindings>
