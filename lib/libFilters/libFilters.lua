@@ -122,12 +122,13 @@ end
 
 --filterCallback must be a function with parameter (slot) and return true/false
 function libFilters:RegisterFilter( filterId, filterType, filterCallback )
-	--lazily initialize the add-on
+	--lazily initialize the library
 	if(not self.IS_INITIALIZED) then self:InitializeLibFilters() end
 	--fail silently if the id isn't free or type out of range or if anything is nil
 	if(not filterId or not filterType or filterType < 1 or filterType > #filters or not filterCallback) then
-		d("ERROR: Invalid arguments to libFilters:RegisterFilter! Args: (" .. zo_strjoin(", ", filterId, filterType, filterCallback) .. ")"))
-	elseif(idToFilter[filterId])
+		d("ERROR: Invalid arguments to libFilters:RegisterFilter! Args: (" .. zo_strjoin(", ", filterId, filterType, filterCallback) .. ")")
+		return
+	elseif(idToFilter[filterId]) then
 		d("ERROR: " .. filterId .. " is already in use!")
 		return
 	end
