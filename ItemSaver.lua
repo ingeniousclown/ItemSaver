@@ -267,8 +267,6 @@ local function ItemSaver_Loaded(eventCode, addOnName)
 		end
 	end
 
-	libFilters:InitializeLibFilters()
-
 	ZO_PreHook("ZO_InventorySlot_ShowContextMenu", AddMarkSoon)
 	ZO_PreHook("PlayOnEquippedAnimation", CreateMarkerControlForEquipment)
 
