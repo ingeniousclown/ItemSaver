@@ -1,6 +1,6 @@
 ## Title: Item Saver
 ## Author: ingeniousclown
-## Version: 1.0.1
+## Version: 1.0.1b
 ## APIVersion: 100004
 ## SavedVariables: ItemSaver_Settings
 ## OptionalDependsOn: libFilters
