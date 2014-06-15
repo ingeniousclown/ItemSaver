@@ -1,7 +1,7 @@
 
 ItemSaverSettings = ZO_Object:Subclass()
 
-local LAM = LibStub("LibAddonMenu-1.0")
+local LAM = LibStub("LibAddonMenu-2.0")
 local settings = nil
 
 
@@ -117,64 +117,120 @@ end
 
 function ItemSaverSettings:CreateOptionsMenu()
 	local str = ItemSaver_Strings[self:GetLanguage()]
-
-	local panel = LAM:CreateControlPanel("ItemSaverSettingsPanel", "Item Saver")
-	LAM:AddHeader(panel, "ItemSaver_Header", "General Options")
-
+	
 	local icon = WINDOW_MANAGER:CreateControl("ItemSaver_Icon", ZO_OptionsWindowSettingsScrollChild, CT_TEXTURE)
 	icon:SetColor(HexToRGBA(settings.textureColor))
 	icon:SetHandler("OnShow", function()
 			self:SetTexture(MARKER_TEXTURES[settings.textureName].texturePath)
 			icon:SetDimensions(MARKER_TEXTURES[settings.textureName].textureSize, MARKER_TEXTURES[settings.textureName].textureSize)
 		end)
-	local dropdown = LAM:AddDropdown(panel, "ItemSaver_Icon_Dropdown", str.ICON_LABEL, str.ICON_TOOLTIP, 
-					TEXTURE_OPTIONS,
-					function() return settings.textureName end,	--getFunc
-					function(value)							--setFunc
+
+	local panel = {
+		type = "panel",
+		name = "Item Saver",
+		author = "ingeniousclown",
+		version = "1.0.2",
+		slashCommand = "/itemsaversettings",
+		registerForRefresh = true
+	}
+
+	local optionsData = {
+		[1] = {
+			type = "header",
+			name = "General Options"
+		},
+
+		[2] = {
+			type = "dropdown",
+			name = str.ICON_LABEL,
+			tooltip = str.ICON_TOOLTIP,
+			choices = TEXTURE_OPTIONS,
+			getFunc = function() return settings.textureName end,
+			setFunc = function(value)
 						settings.textureName = value
 						icon:SetTexture(MARKER_TEXTURES[value].texturePath)
 						icon:SetDimensions(MARKER_TEXTURES[settings.textureName].textureSize, MARKER_TEXTURES[settings.textureName].textureSize)
-					end)
-	icon:SetParent(dropdown)
-	icon:SetTexture(MARKER_TEXTURES[settings.textureName].texturePath)
-	icon:SetDimensions(MARKER_TEXTURES[settings.textureName].textureSize, MARKER_TEXTURES[settings.textureName].textureSize)
-	icon:SetAnchor(RIGHT, dropdown:GetNamedChild("Dropdown"), LEFT, -12, 0)
+					end,
+			reference = "ItemSaver_Icon_Dropdown"
+		},
 
-	LAM:AddColorPicker(panel, "ItemSaver_Icon_Color_Picker", str.TEXTURE_COLOR_LABEL, str.TEXTURE_COLOR_TOOLTIP,
-					function()
+		[3] = {
+			type = "colorpicker",
+			name = str.TEXTURE_COLOR_LABEL,
+			tooltip = str.TEXTURE_COLOR_TOOLTIP,
+			getFunc = function()
 						local r, g, b, a = HexToRGBA(settings.textureColor)
 						return r, g, b
 					end,
-					function(r, g, b)
+			setFunc = function(r, g, b)
 						settings.textureColor = RGBAToHex(r, g, b, 1)
 						icon:SetColor(r, g, b, 1)
-					end)
+					end
+		},
 
-	LAM:AddHeader(panel, "ItemSaver_Filters_Header", "Filter options")
-	LAM:AddCheckbox(panel, "ItemSaver_Filters_Toggle", str.FILTERS_TOGGLE_LABEL, str.FILTERS_TOGGLE_TOOLTIP,
-					function() return settings.isFilterOn end,
-					function(value)
+		[4] = {
+			type = "header",
+			name = "Filter options"
+		},
+
+		[5] = {
+			type = "checkbox",
+			name = str.FILTERS_TOGGLE_LABEL,
+			tooltip = str.FILTERS_TOGGLE_TOOLTIP,
+			getFunc = function() return settings.isFilterOn end,
+			setFunc = function(value)
 						settings.isFilterOn = value
 						ItemSaver_ToggleFilters(value, true)
-					end)
+					end
+		},
 
-	LAM:AddCheckbox(panel, "ItemSaver_Filter_Shop", str.FILTERS_SHOP_LABEL, str.FILTERS_SHOP_TOOLTIP,
-					function() return settings.filterShop end,
-					function(value)
+		[6] = {
+			type = "checkbox",
+			name = str.FILTERS_SHOP_LABEL,
+			tooltip = str.FILTERS_SHOP_TOOLTIP,
+			getFunc = function() return settings.filterShop end,
+			setFunc = function(value)
 						settings.filterShop = value
 						ItemSaver_ToggleShopFilter(value)
-					end)
-	LAM:AddCheckbox(panel, "ItemSaver_Filter_Deconstruction", str.FILTERS_DECONSCRUCTION_LABEL, str.FILTERS_DECONSCRUCTION_TOOLTIP,
-					function() return settings.filterDeconstruction end,
-					function(value)
+					end,
+			disabled = function() return not settings.isFilterOn end
+		},
+
+		[7] = {
+			type = "checkbox",
+			name = str.FILTERS_DECONSCRUCTION_LABEL,
+			tooltip = str.FILTERS_DECONSCRUCTION_TOOLTIP,
+			getFunc = function() return settings.filterDeconstruction end,
+			setFunc = function(value)
 						settings.filterDeconstruction = value
 						ItemSaver_ToggleDeconstructionFilter(value)
-					end)
-	LAM:AddCheckbox(panel, "ItemSaver_Filter_Research", str.FILTERS_RESEARCH_LABEL, str.FILTERS_RESEARCH_TOOLTIP,
-					function() return settings.filterResearch end,
-					function(value)
+					end,
+			disabled = function() return not settings.isFilterOn end
+		},
+
+		[8] = {
+			type = "checkbox",
+			name = str.FILTERS_RESEARCH_LABEL,
+			tooltip = str.FILTERS_RESEARCH_TOOLTIP,
+			getFunc = function() return settings.filterResearch end,
+			setFunc = function(value)
 						settings.filterResearch = value
-					end)
+					end,
+			disabled = function() return not settings.isFilterOn end
+		},
+	}
+
+	LAM:RegisterAddonPanel("ItemSaverSettingsPanel", panel)
+	LAM:RegisterOptionControls("ItemSaverSettingsPanel", optionsData)
+
+	CALLBACK_MANAGER:RegisterCallback("LAM-PanelControlsCreated",
+		function()
+			icon:SetParent(ItemSaver_Icon_Dropdown)
+			icon:SetTexture(MARKER_TEXTURES[settings.textureName].texturePath)
+			icon:SetDimensions(MARKER_TEXTURES[settings.textureName].textureSize, MARKER_TEXTURES[settings.textureName].textureSize)
+			icon:SetAnchor(CENTER, ItemSaver_Icon_Dropdown, CENTER, 36, 0)
+		end)
+
 end
 
 function ItemSaverSettings:GetLanguage()
